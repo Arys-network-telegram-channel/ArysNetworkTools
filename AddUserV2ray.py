@@ -1,27 +1,49 @@
 import base64
 import json
 from datetime import datetime, timedelta
+import os
 
 class UserManager:
-    def __init__(self):
-        self.users = []
-    
+    def __init__(self, filename="users.b64"):
+        self.filename = filename
+        self.users = self.load_users()
+
+    def load_users(self):
+        if os.path.exists(self.filename):
+            with open(self.filename, "r") as file:
+                encoded_data = file.read()
+                if encoded_data:
+                    try:
+                        decoded_data = base64.b64decode(encoded_data).decode()
+                        return json.loads(decoded_data)
+                    except Exception:
+                        return []
+        return []
+
+    def save_users(self):
+        with open(self.filename, "w") as file:
+            encoded_data = base64.b64encode(json.dumps(self.users).encode()).decode()
+            file.write(encoded_data)
+
     def add_user(self, username, password, months):
         expiry_date = (datetime.now() + timedelta(days=30 * months)).strftime('%Y-%m-%d')
         self.users.append({"username": username, "password": password, "expiry_date": expiry_date})
+        self.save_users()
         return f"User '{username}' added with expiry date {expiry_date}."
-    
+
     def remove_user(self, username):
         self.users = [user for user in self.users if user["username"] != username]
+        self.save_users()
         return f"User '{username}' removed."
-    
+
     def update_user_date(self, username, months):
         for user in self.users:
             if user["username"] == username:
                 user["expiry_date"] = (datetime.now() + timedelta(days=30 * months)).strftime('%Y-%m-%d')
+                self.save_users()
                 return f"User '{username}' updated with new expiry date {user['expiry_date']}."
         return f"User '{username}' not found."
-    
+
     def get_users(self, format_type):
         if format_type == "json":
             return json.dumps(self.users, indent=4)
@@ -46,7 +68,7 @@ if __name__ == "__main__":
         print("4. Get Users")
         print("5. Exit")
         choice = input("Choose an option: ")
-        
+
         if choice == "1":
             username = input("Enter username: ")
             password = input("Enter password: ")
